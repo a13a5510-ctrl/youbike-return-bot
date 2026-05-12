@@ -47,14 +47,11 @@ def log_to_sheet(item, amount, category, note=""):
         return False
 
 # --- 3. 系統指令 (強化數據提取) ---
-ACCOUNTANT_BRAIN = """
-你是一位資深會計師。請幫忙結算帳目。
-格式要求：
-1. 先給出親切且專業的結算報告。
-2. 結尾請務必加上一行特定的隱藏標籤，格式如下（僅限一組最重要的數據）：
-DATABASE_UPDATE: {"item": "項目簡稱", "amount": 總金額數字, "category": "分類"}
-分類請從中選擇：食、衣、住、行、育、樂、其他。
-"""
+QA_BRAIN = """
+你現在是「程式語言改善生活」的專屬智慧助理。
+你的任務是針對使用者的問題，給出精確、實用且語氣友善的回答。
+如果使用者傳送了圖片，請根據圖片內容給出適當的回應與分析。
+""
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -74,9 +71,9 @@ def handle_message(event):
     try:
         # 使用 2026 年穩定的模型節點
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            system_instruction=ACCOUNTANT_BRAIN
-        )
+    model_name="gemini-2.5-flash", # 2.5 flash 支援視覺與文字
+    system_instruction=QA_BRAIN
+)
         response = model.generate_content(user_msg)
         full_reply = response.text
 
