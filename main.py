@@ -1,17 +1,18 @@
 import os
 import json
-import gspread
-import google.generativeai as genai
+import firebase_admin
+from firebase_admin import credentials, firestore, storage
 from datetime import datetime
 from flask import Flask, request, abort
-from google.oauth2.service_account import Credentials
+import google.generativeai as genai
+
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
-    Configuration, ApiClient, MessagingApi, 
+    Configuration, ApiClient, MessagingApi, MessagingApiBlob,
     ReplyMessageRequest, TextMessage
 )
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, ImageMessageContent
 
 app = Flask(__name__)
 
@@ -19,39 +20,32 @@ app = Flask(__name__)
 LINE_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
 LINE_SECRET = os.getenv('LINE_CHANNEL_SECRET')
 AI_KEY = os.getenv('GEMINI_API_KEY')
-SHEET_ID = os.getenv('SPREADSHEET_ID')
-# GOOGLE_SHEETS_JSON 儲存完整的 Service Account JSON 內容
-SHEETS_JSON = os.getenv('GOOGLE_SHEETS_JSON')
+# 注意：這裡改成讀取 FIREBASE 的環境變數
+FIREBASE_JSON_STR = os.getenv('FIREBASE_CREDENTIALS') 
 
 configuration = Configuration(access_token=LINE_TOKEN)
 handler = WebhookHandler(LINE_SECRET)
 genai.configure(api_key=AI_KEY)
 
-# --- 2. Google Sheets 記帳功能 ---
-def log_to_sheet(item, amount, category, note=""):
-    try:
-        scope = ['https://www.googleapis.com/auth/spreadsheets']
-        creds_info = json.loads(SHEETS_JSON)
-        creds = Credentials.from_service_account_info(creds_info, scopes=scope)
-        client = gspread.authorize(creds)
-        
-        # 開啟試算表並選取第一個工作表
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        
-        # 格式：日期 | 項目 | 金額 | 分類 | 備註
-        now = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-        sheet.append_row([now, item, amount, category, note])
-        return True
-    except Exception as e:
-        print(f"❌ 雲端記帳失敗: {e}")
-        return False
+# --- 2. 初始化 Firebase ---
+try:
+    firebase_creds = json.loads(FIREBASE_JSON_STR)
+    cred = credentials.Certificate(firebase_creds)
+    # 這裡填寫你剛剛取得的 Storage Bucket 網址
+    firebase_admin.initialize_app(cred, {
+        'storageBucket': 'youbike-return-bot.firebasestorage.app'
+    })
+    db = firestore.client()
+    bucket = storage.bucket()
+    print("✅ Firebase 初始化成功！")
+except Exception as e:
+    print(f"❌ Firebase 初始化失敗: {e}")
 
-# --- 3. 系統指令 (強化數據提取) ---
+# --- 3. 系統指令 (AI 大腦) ---
 QA_BRAIN = """
 你現在是「程式語言改善生活」的專屬智慧助理。
 你的任務是針對使用者的問題，給出精確、實用且語氣友善的回答。
-如果使用者傳送了圖片，請根據圖片內容給出適當的回應與分析。
-""
+"""
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -63,53 +57,80 @@ def callback():
         abort(400)
     return 'OK'
 
+# --- 4. 處理文字訊息 ---
 @handler.add(MessageEvent, message=TextMessageContent)
-def handle_message(event):
+def handle_text_message(event):
     user_msg = event.message.text
-    print(f"📡 收到帳務訊息: {user_msg}")
+    print(f"📡 收到文字訊息: {user_msg}")
 
     try:
-        # 使用 2026 年穩定的模型節點
-        model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash", # 2.5 flash 支援視覺與文字
-    system_instruction=QA_BRAIN
-)
+        # 呼叫 Gemini
+        model = genai.GenerativeModel(model_name="gemini-2.5-flash", system_instruction=QA_BRAIN)
         response = model.generate_content(user_msg)
-        full_reply = response.text
+        ai_reply = response.text
 
-        # 🕵️ 數據抓取邏輯
-        if "DATABASE_UPDATE:" in full_reply:
-            try:
-                # 提取 JSON 部分
-                json_str = full_reply.split("DATABASE_UPDATE:")[1].strip()
-                data = json.loads(json_str)
-                
-                # 執行寫入 Google Sheets
-                success = log_to_sheet(data['item'], data['amount'], data['category'], "LINE 自動入帳")
-                
-                # 清除回覆中的標籤，不讓用戶看到醜醜的代碼
-                display_reply = full_reply.split("DATABASE_UPDATE:")[0].strip()
-                if success:
-                    display_reply += "\n\n✅ [會計師備註] 此筆帳目已同步至雲端帳本。"
-            except:
-                display_reply = full_reply # 解析失敗則回傳原文
-        else:
-            display_reply = full_reply
+        # 存入 Firestore 資料庫
+        doc_ref = db.collection('chats').document()
+        doc_ref.set({
+            'timestamp': datetime.now(),
+            'type': 'text',
+            'user_say': user_msg,
+            'ai_reply': ai_reply,
+            'image_url': None
+        })
 
     except Exception as e:
-        display_reply = f"❌ 會計師暫時無法運算：{str(e)[:50]}"
+        ai_reply = f"❌ 助理大腦當機啦：{str(e)[:50]}"
 
+    reply_to_line(event.reply_token, ai_reply)
+
+# --- 5. 處理圖片訊息 ---
+@handler.add(MessageEvent, message=ImageMessageContent)
+def handle_image_message(event):
+    message_id = event.message.id
+    print(f"📸 收到圖片訊息 ID: {message_id}")
+
+    try:
+        # 1. 從 LINE 下載圖片
+        with ApiClient(configuration) as api_client:
+            line_bot_blob_api = MessagingApiBlob(api_client)
+            image_content = line_bot_blob_api.get_message_content(message_id)
+        
+        # 2. 上傳到 Firebase Storage
+        blob = bucket.blob(f"line_images/{message_id}.jpg")
+        blob.upload_from_string(image_content, content_type='image/jpeg')
+        blob.make_public() # 讓圖片可以對外公開顯示
+        image_url = blob.public_url
+
+        # 3. 回覆用戶 (若要 AI 辨識圖片，需修改此處邏輯，目前先簡單回覆)
+        ai_reply = "✅ 我已經把你的照片存到資料庫囉！可以去網頁上查看。"
+
+        # 4. 存入 Firestore 資料庫
+        doc_ref = db.collection('chats').document()
+        doc_ref.set({
+            'timestamp': datetime.now(),
+            'type': 'image',
+            'user_say': '傳送了一張圖片',
+            'ai_reply': ai_reply,
+            'image_url': image_url
+        })
+
+    except Exception as e:
+        ai_reply = f"❌ 圖片處理失敗：{str(e)[:50]}"
+
+    reply_to_line(event.reply_token, ai_reply)
+
+# --- 共用回覆函數 ---
+def reply_to_line(reply_token, text):
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=display_reply)]
+                reply_token=reply_token,
+                messages=[TextMessage(text=text)]
             )
         )
-# --- 這裡接在原本 handle_message 函數的結束之後 ---
 
 if __name__ == "__main__":
-    # 這是最重要的啟動指令，確保它監聽在 Render 指定的 Port 並對外開放 (0.0.0.0)
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
