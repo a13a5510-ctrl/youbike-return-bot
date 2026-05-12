@@ -5,3 +5,4 @@ gspread
 oauth2client
 gspread
 google-auth
+firebase-admin
