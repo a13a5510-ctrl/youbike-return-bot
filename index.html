@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 助理對話紀錄</title>
+    <style>
+        body { font-family: '微軟正黑體', sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .chat-container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .message { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .user-msg { color: #0056b3; font-weight: bold; }
+        .ai-msg { color: #333; margin-top: 5px; }
+        .time { font-size: 0.8em; color: #999; }
+        img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 徒兒專屬的 Firebase 設定檔
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3aETfTnj6BD16N2lvxl4LQjc0XCJ16h4",
+            authDomain: "youbike-return-bot.firebaseapp.com",
+            databaseURL: "https://youbike-return-bot-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "youbike-return-bot",
+            storageBucket: "youbike-return-bot.firebasestorage.app",
+            messagingSenderId: "330464491384",
+            appId: "1:330464491384:web:285563e87e967eb219ba8d",
+            measurementId: "G-R1DZCNJMYG"
+        };
+
+        // 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 監聽 chats 集合，並依照時間由新到舊排序
+        const q = query(collection(db, "chats"), orderBy("timestamp", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML = ""; // 清空重新渲染
+            
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                
+                // 處理時間戳記格式
+                let timeString = "";
+                if(data.timestamp) {
+                    const date = data.timestamp.toDate();
+                    timeString = date.toLocaleString();
+                }
+
+                let contentHTML = `<div class="message">
+                                     <div class="time">${timeString}</div>`;
+                
+                if (data.type === 'image') {
+                    contentHTML += `<div class="user-msg">👤 你: 傳送了一張圖片<br><img src="${data.image_url}" /></div>`;
+                } else {
+                    contentHTML += `<div class="user-msg">👤 你: ${data.user_say}</div>`;
+                }
+                
+                contentHTML += `<div class="ai-msg">🤖 助理: ${data.ai_reply}</div></div>`;
+                chatBox.innerHTML += contentHTML;
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="chat-container">
+        <h2 style="text-align: center; color: #333;">📡 助理通訊面板</h2>
+        <div id="chat-box">
+            <p style="text-align:center; color:#999;">連線至資料庫中...</p>
+        </div>
+    </div>
+</body>
+</html>
