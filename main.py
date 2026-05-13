@@ -65,7 +65,7 @@ def handle_text_message(event):
 
     try:
         # 呼叫 Gemini
-        model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=QA_BRAIN)
+        model = genai.GenerativeModel(model_name="gemini-2.5-flash", system_instruction=QA_BRAIN)
         response = model.generate_content(user_msg)
         ai_reply = response.text
 
