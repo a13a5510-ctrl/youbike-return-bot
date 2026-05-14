@@ -64,10 +64,10 @@ if FIREBASE_CREDENTIALS:
     try:
         cred_dict = json.loads(FIREBASE_CREDENTIALS)
         cred = credentials.Certificate(cred_dict)
-        # 自動抓取專案 ID 作為儲存桶名稱
-        firebase_admin.initialize_app(cred, {
-            'storageBucket': f"{cred_dict['project_id']}.appspot.com"
-        })
+        # 換成你專屬的最新版 Storage 名稱
+     firebase_admin.initialize_app(cred, {
+         'storageBucket': "youbike-return-bot.firebasestorage.app"
+     })
         db = firestore.client()
         bucket = storage.bucket()
         print("✅ Firebase Firestore & Storage 初始化成功！")
