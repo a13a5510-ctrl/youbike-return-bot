@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
@@ -53,7 +54,7 @@ QA_BRAIN = """
 }
 """
 
-# 初始化 Gemini (使用穩定的 1.5-flash)
+# 初始化 Gemini (使用 2.5-flash 大腦)
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(model_name="gemini-2.5-flash", system_instruction=QA_BRAIN)
 
@@ -70,7 +71,7 @@ if FIREBASE_CREDENTIALS:
         print(f"❌ Firebase 初始化失敗: {e}")
 
 # ==========================================
-# 🛡️ 記憶與防禦陣法 (Session & Spam Protection)
+# 🛡️ 記憶與防禦陣法 (Session & 單一單號追蹤)
 # ==========================================
 USER_SESSIONS = {}
 
@@ -80,24 +81,31 @@ def get_session(user_id):
         "history": [], 
         "last_active": now, 
         "bad_image_count": 0, 
-        "frozen_until": 0
+        "frozen_until": 0,
+        "doc_id": None,        # 記錄資料庫的單號
+        "full_message": ""     # 累積完整的對話紀錄
     })
     
-    # 【生命週期結界】超過五分鐘 (300秒) 未回覆，清空記憶重新開始
+    # 【生命週期結界】超過五分鐘 (300秒) 未回覆，清空記憶重新開單
     if now - session["last_active"] > 300:
         session["history"] = []
+        session["doc_id"] = None
+        session["full_message"] = ""
         
     session["last_active"] = now
     USER_SESSIONS[user_id] = session
     return session
 
 def clean_json_string(raw_text):
-    """極限防禦版：直接暴力擷取 {} 之間的內容，無視任何多餘的文字"""
-    start = raw_text.find('{')
-    end = raw_text.rfind('}')
-    if start != -1 and end != -1:
-        return raw_text[start:end+1]
-    return "{}"
+    """安全地清除 Gemini 可能輸出的 markdown json 標記"""
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    return cleaned.strip()
 
 # ==========================================
 # 🌐 Webhook 接收路由
@@ -121,11 +129,16 @@ def handle_text_message(event):
     user_msg = event.message.text
     session = get_session(user_id)
     
-    # 檢查是否在冷凍期
     if time.time() < session["frozen_until"]:
         return
 
     session["history"].append({"role": "user", "parts": [user_msg]})
+    
+    # 累積對話內容 (讓長官看到完整對話)
+    if session["full_message"]:
+        session["full_message"] += f" ｜ {user_msg}"
+    else:
+        session["full_message"] = user_msg
     
     try:
         chat = model.start_chat(history=session["history"][:-1])
@@ -137,19 +150,32 @@ def handle_text_message(event):
         result = json.loads(json_str)
         reply_text = result.get("reply_text", "收到回報，處理中。")
         
-        # 寫入 Firebase
+        # 寫入/更新 Firebase
         if db:
-            db.collection('user_reports').add({
+            report_data = {
                 'user_id': user_id,
-                'message': user_msg,
+                'message': session["full_message"],
                 'reply': reply_text,
                 'category': result.get("category", "未分類"),
-                'bike_id': result.get("extracted_bike_id", ""),
-                'location': result.get("extracted_location", ""),
                 'is_complete': result.get("is_complete", False),
                 'status': 'pending',
                 'timestamp': firestore.SERVER_TIMESTAMP
-            })
+            }
+            
+            # 防呆機制：只在有抓到新資料時才更新車號地點，避免被空字串洗掉
+            if result.get("extracted_bike_id"):
+                report_data['bike_id'] = result.get("extracted_bike_id")
+            if result.get("extracted_location"):
+                report_data['location'] = result.get("extracted_location")
+
+            if not session["doc_id"]:
+                # 第一次發言：新增單號
+                new_ref = db.collection('user_reports').document()
+                new_ref.set(report_data)
+                session["doc_id"] = new_ref.id
+            else:
+                # 繼續對話：更新舊單 (merge=True 保留其他欄位)
+                db.collection('user_reports').document(session["doc_id"]).set(report_data, merge=True)
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         
@@ -166,9 +192,14 @@ def handle_image_message(event):
     user_id = event.source.user_id
     session = get_session(user_id)
     
-    # 檢查是否在冷凍期
     if time.time() < session["frozen_until"]:
         return
+
+    # 累積圖片紀錄
+    if session["full_message"]:
+        session["full_message"] += " ｜ [傳送了圖片]"
+    else:
+        session["full_message"] = "[傳送了圖片]"
 
     message_content = line_bot_api.get_message_content(event.message.id)
     image_data = b"".join(message_content.iter_content())
@@ -187,7 +218,6 @@ def handle_image_message(event):
         reply_text = result.get("reply_text", "已收到圖片！")
         is_valid = result.get("is_valid_image", True)
         
-        # 【惡意流量防禦】連續兩次無關圖片即冷凍
         if not is_valid:
             session["bad_image_count"] += 1
             if session["bad_image_count"] >= 2:
@@ -197,17 +227,29 @@ def handle_image_message(event):
         else:
             session["bad_image_count"] = 0
             
+        # 寫入/更新 Firebase
         if db:
-            db.collection('user_reports').add({
+            report_data = {
                 'user_id': user_id,
-                'message': "[用戶上傳了圖片]",
+                'message': session["full_message"],
                 'reply': reply_text,
                 'category': result.get("category", "未分類"),
-                'bike_id': result.get("extracted_bike_id", ""),
                 'is_complete': result.get("is_complete", False),
                 'status': 'pending',
                 'timestamp': firestore.SERVER_TIMESTAMP
-            })
+            }
+            
+            if result.get("extracted_bike_id"):
+                report_data['bike_id'] = result.get("extracted_bike_id")
+            if result.get("extracted_location"):
+                report_data['location'] = result.get("extracted_location")
+
+            if not session["doc_id"]:
+                new_ref = db.collection('user_reports').document()
+                new_ref.set(report_data)
+                session["doc_id"] = new_ref.id
+            else:
+                db.collection('user_reports').document(session["doc_id"]).set(report_data, merge=True)
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         
