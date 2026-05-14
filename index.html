@@ -6,50 +6,30 @@
     <title>YouBike 智能客服中心</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
-        /* 🌞 白晝模式 (預設) */
+        /* 🌞 白晝模式 */
         :root {
-            --bg-color: #FFFafb;         
-            --primary: #FFB6C1;          
-            --primary-dark: #FF9EAB;     
-            --secondary: #8395a7;        
-            --accent: #ff9f43;           
-            --card-bg: #FFFFFF;          
-            --text-dark: #576574;        
-            --border-color: #ffe4e8;
-            --hover-bg: #fff5f7;
+            --bg-color: #FFFafb; --primary: #FFB6C1; --primary-dark: #FF9EAB;     
+            --secondary: #8395a7; --accent: #ff9f43; --card-bg: #FFFFFF;          
+            --text-dark: #576574; --border-color: #ffe4e8; --hover-bg: #fff5f7;
             --shadow: 0 8px 24px rgba(255, 182, 193, 0.15);
-            
-            --bg-repair: #fff0f3; --text-repair: #ff7675;
-            --bg-spam: #ffeaa7; --text-spam: #d35400;
-            --bg-pending: #e0f7fa; --text-pending: #0097e6;
-            --bg-done: #e8f8f5; --text-done: #00b894;
         }
-
-        /* 🌙 深色護眼模式 (Night Mode) */
+        /* 🌙 深色護眼模式 */
         [data-theme="dark"] {
-            --bg-color: #121212;         
-            --primary: #ff8fa3;          
-            --primary-dark: #ff748c;     
-            --secondary: #a0aec0;        
-            --accent: #f6ad55;           
-            --card-bg: #1e1e1e;          
-            --text-dark: #e2e8f0;        
-            --border-color: #2d3748;
-            --hover-bg: #2d3748;
+            --bg-color: #121212; --primary: #ff8fa3; --primary-dark: #ff748c;     
+            --secondary: #a0aec0; --accent: #f6ad55; --card-bg: #1e1e1e;          
+            --text-dark: #e2e8f0; --border-color: #2d3748; --hover-bg: #2d3748;
             --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-
-            --bg-repair: #4a2b30; --text-repair: #ffb3b3;
-            --bg-spam: #524020; --text-spam: #fbd38d;
-            --bg-pending: #1a365d; --text-pending: #90cdf4;
-            --bg-done: #1c4532; --text-done: #9ae6b4;
         }
 
         body { font-family: 'Nunito', 'Noto Sans TC', sans-serif; background-color: var(--bg-color); color: var(--text-dark); margin: 0; display: flex; flex-direction: column; height: 100vh; transition: 0.3s; }
-        
         .header { background: var(--card-bg); padding: 15px 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--border-color); transition: 0.3s; }
         .header h1 { margin: 0; color: var(--primary-dark); font-size: 1.5em; font-weight: 700; }
-        .theme-btn { margin-left: auto; background: none; border: 2px solid var(--border-color); color: var(--secondary); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: 0.3s; }
+        .header-btns { margin-left: auto; display: flex; gap: 10px; }
+        .theme-btn { background: none; border: 2px solid var(--border-color); color: var(--secondary); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: 0.3s; }
         .theme-btn:hover { background: var(--hover-bg); color: var(--primary); border-color: var(--primary); }
 
         .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 25px 40px; }
@@ -58,14 +38,17 @@
         .stat-card h3 { margin: 0; font-size: 0.95em; color: var(--secondary); font-weight: 600; }
         .stat-card p { margin: 10px 0 0; font-size: 2.2em; font-weight: 700; color: var(--text-dark); }
 
-        /* 🎛️ 進階戰術篩選列 */
         .control-panel { padding: 0 40px 15px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-        .filter-group { display: flex; gap: 10px; align-items: center; background: var(--card-bg); padding: 6px 10px; border-radius: 30px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; }
+        .filter-group { display: flex; gap: 10px; align-items: center; background: var(--card-bg); padding: 6px 10px; border-radius: 30px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
         input[type="text"], select { padding: 8px 12px; border: none; font-size: 0.95em; outline: none; background: transparent; color: var(--text-dark); }
-        input[type="text"] { width: 200px; border-right: 1px solid var(--border-color); }
+        input[type="text"] { width: 160px; border-right: 1px solid var(--border-color); }
         .checkbox-label { color: var(--secondary); font-size: 0.95em; display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: var(--card-bg); border-radius: 30px; border: 1px solid var(--border-color); transition: 0.3s; }
         .checkbox-label:hover { background: var(--hover-bg); }
 
+        /* 地圖區塊 */
+        #map-wrapper { margin: 0 40px 15px; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); display: none; height: 350px; border: 1px solid var(--border-color); transition: 0.3s; }
+        #map { width: 100%; height: 100%; z-index: 1; }
+        
         .main-content { flex: 1; overflow-y: auto; padding: 0 40px 30px; }
         .report-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
         .report-table th { color: var(--secondary); padding: 0 15px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border-color); }
@@ -76,14 +59,11 @@
         .report-table tr.item-row td { border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
 
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 700; display: inline-block; }
-        .bg-repair { background: var(--bg-repair); color: var(--text-repair); }
-        .bg-spam { background: var(--bg-spam); color: var(--text-spam); }
-        .bg-pending { background: var(--bg-pending); color: var(--text-pending); }
-        .bg-done { background: var(--bg-done); color: var(--text-done); }
-
+        .bg-repair { background: #fff0f3; color: #ff7675; }
+        .bg-pending { background: #e0f7fa; color: #0097e6; }
+        .bg-done { background: #e8f8f5; color: #00b894; }
+        
         .btn { border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-solve { background: #55efc4; color: #121212; }
-        .btn-invalid { background: #ff7675; color: white; margin-left: 8px; }
         .btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
 
         /* Modal */
@@ -93,12 +73,15 @@
         .modal-header h2 { margin: 0; font-size: 1.2em; color: var(--primary-dark); }
         .close-btn { background: none; border: none; font-size: 1.5em; color: var(--secondary); cursor: pointer; }
         .modal-body { padding: 25px; max-height: 60vh; overflow-y: auto; }
-        
         .chat-container { display: flex; flex-direction: column; gap: 12px; }
         .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 0.95em; line-height: 1.5; }
         .user-bubble { align-self: flex-end; background: var(--primary); color: #121212; border-bottom-right-radius: 4px; font-weight: 500;}
         .ai-bubble { align-self: flex-start; background: var(--bg-color); color: var(--text-dark); border-bottom-left-radius: 4px; border: 1px solid var(--border-color); }
         .modal-footer { padding: 15px 25px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; }
+        
+        /* 會呼吸的地圖標記點 */
+        .pulsing-icon { border-radius: 50%; background: #ff4757; box-shadow: 0 0 0 rgba(255, 71, 87, 0.4); animation: pulse 1.5s infinite; border: 2px solid white; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); } }
     </style>
 </head>
 <body>
@@ -106,7 +89,12 @@
     <div class="header">
         <i class="fas fa-seedling" style="color: var(--primary); font-size: 1.8em;"></i>
         <h1>YouBike 智能客服中心</h1>
-        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn"><i class="fas fa-moon"></i> 深色模式</button>
+        <div class="header-btns">
+            <button class="theme-btn" onclick="toggleTheme()" id="themeBtn"><i class="fas fa-moon"></i> 深色模式</button>
+            <button class="btn" style="background: var(--secondary); color: white;" onclick="exportToCSV()">
+                <i class="fas fa-file-excel"></i> 匯出報表
+            </button>
+        </div>
     </div>
 
     <div class="stats-bar">
@@ -120,62 +108,42 @@
         <div class="filter-group">
             <i class="fas fa-search" style="color: var(--primary); margin-left: 10px;"></i>
             <input type="text" id="search-input" placeholder="車號或站點..." onkeyup="filterData()">
-            
             <select id="filter-time" onchange="filterData()">
-                <option value="all">⏳ 全部時間</option>
-                <option value="3">近 3 日</option>
-                <option value="7">近 1 週</option>
-                <option value="30">近 1 個月</option>
+                <option value="all">⏳ 全部時間</option><option value="3">近 3 日</option><option value="7">近 1 週</option><option value="30">近 1 個月</option>
             </select>
-
             <select id="filter-reason" onchange="filterData()">
-                <option value="all">🚲 所有狀況</option>
-                <option value="tire">輪胎異常 (破胎/沒氣)</option>
-                <option value="chain">傳動系統 (掉鏈/踏板)</option>
-                <option value="brake">煞車系統 (失靈)</option>
-                <option value="seat">坐墊異常 (卡死/損壞)</option>
-                <option value="machine">車機面板 (鎖死/故障)</option>
+                <option value="all">🚲 所有狀況</option><option value="tire">輪胎異常</option><option value="chain">傳動系統</option>
+                <option value="brake">煞車系統</option><option value="seat">坐墊異常</option><option value="machine">車機面板</option>
             </select>
         </div>
-
-        <label class="checkbox-label">
-            <input type="checkbox" id="filter-has-image" onchange="filterData()"> 🖼️ 僅顯示有圖
-        </label>
-        <label class="checkbox-label">
-            <input type="checkbox" id="show-resolved" onchange="filterData()"> 歷史結案資料
-        </label>
-        <button class="btn" style="background: var(--secondary); color: white; margin-left: auto;" onclick="exportToCSV()">
-            <i class="fas fa-file-excel"></i> 匯出報表
+        <label class="checkbox-label"><input type="checkbox" id="filter-has-image" onchange="filterData()"> 🖼️ 僅顯示有圖</label>
+        <label class="checkbox-label"><input type="checkbox" id="show-resolved" onchange="filterData()"> 歷史結案資料</label>
+        
+        <button class="btn" style="background: #e0f7fa; color: #0097e6; border: 1px solid #b2ebf2; margin-left: auto;" onclick="toggleMap()">
+            <i class="fas fa-map-marked-alt"></i> 災情雷達地圖
         </button>
     </div>
+
+    <div id="map-wrapper"><div id="map"></div></div>
 
     <div class="main-content">
         <table class="report-table">
             <thead>
                 <tr>
-                    <th>回報時間</th>
-                    <th>問題類別</th>
-                    <th>車輛編號</th>
-                    <th>最後動態摘要</th>
-                    <th>處理狀態</th>
-                    <th>操作面板</th>
+                    <th>報修時間</th><th>問題類別</th><th>電話/車號</th><th>最後動態摘要</th><th>處理狀態</th><th>操作</th>
                 </tr>
             </thead>
-            <tbody id="data-list">
-                <tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--secondary);">資料載入中，請稍候... 🌸</td></tr>
-            </tbody>
+            <tbody id="data-list"><tr><td colspan="6" style="text-align:center; padding: 40px;">資料載入中，請稍候... 🌸</td></tr></tbody>
         </table>
     </div>
 
     <div class="modal-overlay" id="chat-modal" onclick="closeModal(event)">
         <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h2 id="modal-title">案件詳細資訊</h2>
-                <button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button>
-            </div>
+            <div class="modal-header"><h2 id="modal-title">案件詳細資訊</h2><button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button></div>
             <div class="modal-body">
                 <div style="background: var(--bg-color); padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9em; border-left: 4px solid var(--primary);">
-                    <div style="margin-bottom: 5px;">📍 <b>地點：</b> <span id="modal-loc"></span></div>
+                    <div>📞 <b>電話：</b> <span id="modal-phone"></span></div>
+                    <div style="margin: 5px 0;">📍 <b>地點：</b> <span id="modal-loc"></span></div>
                     <div>🚲 <b>車號：</b> <span id="modal-bike"></span></div>
                 </div>
                 <div class="chat-container" id="modal-chat-box"></div>
@@ -200,23 +168,24 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let allData = [];
+        
+        // 🗺️ 地圖變數
+        let myMap = null;
+        let mapMarkers = [];
 
         const q = query(collection(db, "user_reports"), orderBy("timestamp", "desc"));
         onSnapshot(q, (snapshot) => {
             allData = [];
             snapshot.forEach(doc => allData.push({ id: doc.id, ...doc.data() }));
-            renderTable(allData);
+            filterData();
         });
 
-        // 🧠 大師的智慧過濾矩陣
         function checkReason(message, reasonFilter) {
             if (reasonFilter === 'all') return true;
             const msg = message.toLowerCase();
             const keywords = {
-                'tire': ['胎', '氣', '破', '輪'],
-                'chain': ['鏈', '踏板', '傳動', '齒輪'],
-                'brake': ['煞', '剎', '停不住'],
-                'seat': ['墊', '座', '高度'],
+                'tire': ['胎', '氣', '破', '輪'], 'chain': ['鏈', '踏板', '傳動', '齒輪'],
+                'brake': ['煞', '剎', '停不住'], 'seat': ['墊', '座', '高度'],
                 'machine': ['機', '面板', '鎖', '螢幕', '逼', '代碼']
             };
             return keywords[reasonFilter].some(kw => msg.includes(kw));
@@ -230,56 +199,54 @@
             const needImage = document.getElementById("filter-has-image").checked;
             const showResolved = document.getElementById("show-resolved").checked;
 
-            // 時間結界計算
             const now = new Date();
             let timeLimit = null;
-            if (timeFilter !== 'all') {
-                timeLimit = new Date();
-                timeLimit.setDate(now.getDate() - parseInt(timeFilter));
-            }
+            if (timeFilter !== 'all') { timeLimit = new Date(); timeLimit.setDate(now.getDate() - parseInt(timeFilter)); }
 
             list.innerHTML = "";
             let hasData = false;
             let imgCount = 0, pendingCount = 0, spamCount = 0;
+            let filteredData = [];
 
             allData.forEach((item, index) => {
                 const itemDate = item.timestamp ? item.timestamp.toDate() : new Date();
                 const msg = item.message || "";
                 
-                // 基礎條件
                 const matchesSearch = (item.bike_id || "").toLowerCase().includes(search) || (item.location || "").toLowerCase().includes(search);
                 const isHiddenResolved = item.status === 'resolved' && !showResolved;
-                
-                // 進階條件
                 const matchesTime = timeLimit ? itemDate >= timeLimit : true;
                 const matchesReason = checkReason(msg, reasonFilter);
                 const hasImg = item.image_urls && item.image_urls.length > 0;
                 const matchesImage = needImage ? hasImg : true;
 
-                // 統計數據 (不受篩選器影響，只算全域，但可視需求調整)
                 if(hasImg) imgCount++;
                 if(item.status === 'pending') pendingCount++;
                 if(item.category === '惡作劇/無效') spamCount++;
 
                 if (matchesSearch && matchesTime && matchesReason && matchesImage && !isHiddenResolved) {
                     hasData = true;
+                    filteredData.push(item); // 存入給地圖用的陣列
+                    
                     const timeStr = itemDate.toLocaleString([], {month:'2-digit', day:'2-digit', hour: '2-digit', minute:'2-digit'});
                     const msgArray = msg.split('｜');
                     let lastMsg = msgArray[msgArray.length - 1].trim();
                     if(hasImg) lastMsg = `🖼️ ` + lastMsg.replace("[傳送了圖片]", "圖片附件");
 
                     list.innerHTML += `
-                        <tr class="item-row" onclick="openModal(${index})">
+                        <tr class="item-row" onclick="openModal('${item.id}')">
                             <td style="color: var(--secondary);">${timeStr}</td>
                             <td><span class="badge ${item.category === '設備報修' ? 'bg-repair' : 'bg-pending'}">${item.category}</span></td>
-                            <td style="font-weight:700; color:var(--primary-dark); font-size:1.1em;">${item.bike_id || '--'}</td>
+                            <td>
+                                <div style="font-size:0.85em; color:var(--secondary);">${item.phone || '--'}</div>
+                                <div style="font-weight:700; color:var(--primary-dark); font-size:1.1em;">${item.bike_id || '--'}</div>
+                            </td>
                             <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--secondary);">${lastMsg}</td>
                             <td><span class="badge ${item.status === 'pending' ? 'bg-pending' : 'bg-done'}">${item.status === 'pending' ? '待處理' : '已結案'}</span></td>
                             <td onclick="event.stopPropagation()">
                                 ${item.status === 'pending' ? 
-                                    `<button class="btn btn-solve" onclick="markSolved('${item.id}')"><i class="fas fa-check"></i></button>
-                                     <button class="btn btn-invalid" onclick="markSpam('${item.id}')"><i class="fas fa-trash"></i></button>` : 
-                                    `<span style="color:var(--secondary); font-size:0.85em;"><i class="fas fa-archive"></i> 已歸檔</span>`
+                                    `<button class="btn" style="background:#55efc4; color:#121212;" onclick="markSolved('${item.id}')"><i class="fas fa-check"></i></button>
+                                     <button class="btn" style="background:#ff7675; color:white;" onclick="markSpam('${item.id}')"><i class="fas fa-trash"></i></button>` : 
+                                    `<span style="color:var(--secondary); font-size:0.85em;"><i class="fas fa-archive"></i> 歸檔</span>`
                                 }
                             </td>
                         </tr>
@@ -289,16 +256,62 @@
 
             if(!hasData) list.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--secondary);">目前沒有符合條件的案件喔 🌸</td></tr>`;
             
-            // 更新統計版
             document.getElementById("stat-total").innerText = allData.length;
             document.getElementById("stat-images").innerText = imgCount;
             document.getElementById("stat-pending").innerText = pendingCount;
             document.getElementById("stat-spam").innerText = spamCount;
+
+            // 同步更新地圖標記
+            updateMapMarkers(filteredData);
         };
 
-        window.openModal = (index) => {
-            const item = allData[index];
+        // 🗺️ 地圖切換與渲染邏輯
+        window.toggleMap = () => {
+            const wrapper = document.getElementById('map-wrapper');
+            if (wrapper.style.display === 'block') {
+                wrapper.style.display = 'none';
+            } else {
+                wrapper.style.display = 'block';
+                if (!myMap) {
+                    // 初始化地圖 (預設視角: 台北市)
+                    myMap = L.map('map').setView([25.0330, 121.5654], 12);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; OpenStreetMap'
+                    }).addTo(myMap);
+                }
+                setTimeout(() => myMap.invalidateSize(), 100); // 修正隱藏區塊打開後地圖破圖問題
+                filterData(); // 重新觸發標記渲染
+            }
+        };
+
+        function updateMapMarkers(dataToShow) {
+            if (!myMap) return;
+            // 清除舊標記
+            mapMarkers.forEach(m => myMap.removeLayer(m));
+            mapMarkers = [];
+            
+            dataToShow.forEach(item => {
+                if (item.lat && item.lng && item.status === 'pending') {
+                    // 建立會呼吸的紅色閃爍 icon
+                    const pulseIcon = L.divIcon({ className: 'pulsing-icon', iconSize: [20, 20] });
+                    const marker = L.marker([item.lat, item.lng], { icon: pulseIcon }).addTo(myMap);
+                    
+                    marker.bindPopup(`
+                        <b style="color:#ff4757;">${item.category}</b><br>
+                        🚲 站點: ${item.location}<br>
+                        🔍 車號: ${item.bike_id || '未提供'}<br>
+                        <button onclick="openModal('${item.id}')" style="margin-top:5px; padding:4px 8px; font-size:12px; cursor:pointer;">查看詳細</button>
+                    `);
+                    mapMarkers.push(marker);
+                }
+            });
+        }
+
+        window.openModal = (id) => {
+            const item = allData.find(d => d.id === id);
+            if(!item) return;
             document.getElementById('modal-title').innerText = `案件 #${item.id.substring(0,6)}`;
+            document.getElementById('modal-phone').innerText = item.phone || '尚未提供';
             document.getElementById('modal-bike').innerText = item.bike_id || '尚未提供';
             document.getElementById('modal-loc').innerText = item.location || '尚未提供';
 
@@ -307,11 +320,8 @@
             
             if (item.image_urls && item.image_urls.length > 0) {
                 let photoHtml = '<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:15px;">';
-                item.image_urls.forEach(url => {
-                    photoHtml += `<img src="${url}" style="height:120px; border-radius:12px; cursor:zoom-in; border:2px solid var(--border-color); box-shadow:var(--shadow);" onclick="window.open('${url}')">`;
-                });
-                photoHtml += '</div>';
-                chatBox.innerHTML = photoHtml;
+                item.image_urls.forEach(url => { photoHtml += `<img src="${url}" style="height:120px; border-radius:12px; cursor:zoom-in; border:2px solid var(--border-color); box-shadow:var(--shadow);" onclick="window.open('${url}')">`; });
+                photoHtml += '</div>'; chatBox.innerHTML = photoHtml;
             }
 
             const userMsgs = (item.message || "").split('｜');
@@ -325,96 +335,49 @@
             const footer = document.getElementById('modal-actions');
             if (item.status === 'pending') {
                 footer.innerHTML = `
-                    <button class="btn btn-invalid" onclick="markSpam('${item.id}'); closeModal();">標記無效</button>
-                    <button class="btn btn-solve" onclick="markSolved('${item.id}'); closeModal();">結案處理</button>
+                    <button class="btn" style="background:#ff7675; color:white;" onclick="markSpam('${item.id}'); closeModal();">標記無效</button>
+                    <button class="btn" style="background:#55efc4; color:#121212;" onclick="markSolved('${item.id}'); closeModal();">結案處理</button>
                 `;
             } else {
                 footer.innerHTML = `<span style="color: var(--secondary); font-weight:bold;">此案件已結案</span>`;
             }
-
             document.getElementById('chat-modal').style.display = 'flex';
         };
 
-        window.closeModal = (e) => {
-            if(e) e.stopPropagation();
-            document.getElementById('chat-modal').style.display = 'none';
-        };
+        window.closeModal = (e) => { if(e) e.stopPropagation(); document.getElementById('chat-modal').style.display = 'none'; };
 
-        window.markSolved = async (id) => {
-            await updateDoc(doc(db, "user_reports", id), { status: "resolved" });
-        };
+        window.markSolved = async (id) => { await updateDoc(doc(db, "user_reports", id), { status: "resolved" }); };
+        window.markSpam = async (id) => { if(confirm("標記無效？")) await updateDoc(doc(db, "user_reports", id), { category: "惡作劇/無效", status: "resolved" }); };
 
-        window.markSpam = async (id) => {
-            if(confirm("確定將此回報標記為無效嗎？")) await updateDoc(doc(db, "user_reports", id), { category: "惡作劇/無效", status: "resolved" });
-        };
-
-        // 🌙 深色模式切換邏輯
         window.toggleTheme = () => {
             const body = document.body;
             const btn = document.getElementById('themeBtn');
             if (body.getAttribute('data-theme') === 'dark') {
-                body.removeAttribute('data-theme');
-                btn.innerHTML = '<i class="fas fa-moon"></i> 深色模式';
+                body.removeAttribute('data-theme'); btn.innerHTML = '<i class="fas fa-moon"></i> 深色模式';
             } else {
-                body.setAttribute('data-theme', 'dark');
-                btn.innerHTML = '<i class="fas fa-sun"></i> 白晝模式';
+                body.setAttribute('data-theme', 'dark'); btn.innerHTML = '<i class="fas fa-sun"></i> 白晝模式';
             }
         };
-// 📊 一鍵匯出 CSV (Excel 可開)
+
+        // 📊 一鍵匯出 CSV
         window.exportToCSV = () => {
-            // 抓取目前畫面上過濾後準備顯示的資料 (利用已有的 allData 和篩選條件)
-            const search = document.getElementById("search-input").value.toLowerCase();
-            const timeFilter = document.getElementById("filter-time").value;
-            const reasonFilter = document.getElementById("filter-reason").value;
-            const needImage = document.getElementById("filter-has-image").checked;
-            const showResolved = document.getElementById("show-resolved").checked;
-
-            const now = new Date();
-            let timeLimit = null;
-            if (timeFilter !== 'all') {
-                timeLimit = new Date();
-                timeLimit.setDate(now.getDate() - parseInt(timeFilter));
-            }
-
             let csvContent = "報修時間,處理狀態,分類,聯絡電話,車號,地點,詳細內容,圖片連結\n";
-
             allData.forEach(item => {
-                const itemDate = item.timestamp ? item.timestamp.toDate() : new Date();
                 const msg = item.message || "";
-                
-                const matchesSearch = (item.bike_id || "").toLowerCase().includes(search) || (item.location || "").toLowerCase().includes(search);
-                const isHiddenResolved = item.status === 'resolved' && !showResolved;
-                const matchesTime = timeLimit ? itemDate >= timeLimit : true;
-                const matchesReason = checkReason(msg, reasonFilter);
-                const hasImg = item.image_urls && item.image_urls.length > 0;
-                const matchesImage = needImage ? hasImg : true;
-
-                if (matchesSearch && matchesTime && matchesReason && matchesImage && !isHiddenResolved) {
-                    const timeStr = itemDate.toLocaleString();
+                if (item.status === 'pending') { // 預設匯出未結案，如需匯出篩選後資料可調整
+                    const timeStr = item.timestamp ? item.timestamp.toDate().toLocaleString() : "無";
                     const statusStr = item.status === 'pending' ? '待處理' : '已結案';
-                    const phone = item.phone || "未提供";
-                    const bikeId = item.bike_id || "";
-                    const loc = item.location || "";
-                    // 處理內容中的逗號與換行，避免 CSV 跑版
                     const cleanMsg = msg.replace(/｜/g, " ").replace(/,/g, "，").replace(/\n/g, " ");
-                    const imgLinks = hasImg ? item.image_urls.join(" ; ") : "無";
-
-                    csvContent += `${timeStr},${statusStr},${item.category},${phone},${bikeId},${loc},${cleanMsg},${imgLinks}\n`;
+                    const imgLinks = (item.image_urls && item.image_urls.length > 0) ? item.image_urls.join(" ; ") : "無";
+                    csvContent += `${timeStr},${statusStr},${item.category},${item.phone || "未提供"},${item.bike_id || ""},${item.location || ""},${cleanMsg},${imgLinks}\n`;
                 }
             });
-
-            // 觸發下載
-            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF 是為了解決 Excel 中文亂碼
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `YouBike報修清單_${new Date().getTime()}.csv`);
-            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            link.download = `YouBike報修清單_${new Date().getTime()}.csv`;
             link.click();
-            document.body.removeChild(link);
         };
-        // 初始渲染
-        function renderTable(data) { window.filterData(); }
     </script>
 </body>
 </html>
