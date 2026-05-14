@@ -105,15 +105,28 @@ def clean_json_string(raw_text):
     return raw_text[start:end+1] if start != -1 and end != -1 else "{}"
 
 def enrich_location_data(report_data, loc_str):
-    """利用 YouBike API 進行模糊比對，校正站名並取得 GPS 座標"""
+    """利用 YouBike API 進行模糊比對，校正站名並取得 GPS 座標 (終極防禦版)"""
     report_data['location'] = loc_str
     if len(loc_str) >= 2:
         for st in YOUBIKE_STATIONS:
-            sna_clean = st['sna'].replace('YouBike2.0_', '')
+            # 安全取得站名，若該站資料損毀則跳過
+            st_name = st.get('sna', '')
+            if not st_name:
+                continue
+                
+            sna_clean = st_name.replace('YouBike2.0_', '')
+            
+            # 若民眾說的地點有比中站點名稱
             if loc_str in sna_clean or sna_clean in loc_str:
                 report_data['location'] = sna_clean # 校正官方站名
-                report_data['lat'] = st['lat']      # 寫入緯度
-                report_data['lng'] = st['lng']      # 寫入經度
+                
+                # 【金鐘罩取值法】安全獲取經緯度，支援多種常見命名，找不到也不會當機！
+                lat = st.get('lat') or st.get('latitude')
+                lng = st.get('lng') or st.get('longitude') or st.get('lon')
+                
+                if lat and lng:
+                    report_data['lat'] = float(lat)
+                    report_data['lng'] = float(lng)
                 break
 
 @app.route("/callback", methods=['POST'])
