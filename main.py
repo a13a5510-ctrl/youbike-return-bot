@@ -65,9 +65,9 @@ if FIREBASE_CREDENTIALS:
         cred_dict = json.loads(FIREBASE_CREDENTIALS)
         cred = credentials.Certificate(cred_dict)
         # 換成你專屬的最新版 Storage 名稱
-     firebase_admin.initialize_app(cred, {
+       firebase_admin.initialize_app(cred, {
          'storageBucket': "youbike-return-bot.firebasestorage.app"
-     })
+        })
         db = firestore.client()
         bucket = storage.bucket()
         print("✅ Firebase Firestore & Storage 初始化成功！")
