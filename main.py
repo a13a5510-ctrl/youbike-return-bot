@@ -55,7 +55,7 @@ QA_BRAIN = """
 
 # 初始化 Gemini (使用穩定的 1.5-flash)
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=QA_BRAIN)
+model = genai.GenerativeModel(model_name="gemini-2.5-flash", system_instruction=QA_BRAIN)
 
 # 初始化 Firebase
 db = None
