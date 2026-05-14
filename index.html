@@ -119,9 +119,6 @@
     <div class="control-panel">
         <div class="filter-group">
             <i class="fas fa-search" style="color: var(--primary); margin-left: 10px;"></i>
-            <button class="btn" style="background: var(--secondary); color: white; margin-left: auto;" onclick="exportToCSV()">
-            <i class="fas fa-file-excel"></i> 匯出報表
-        </button>
             <input type="text" id="search-input" placeholder="車號或站點..." onkeyup="filterData()">
             
             <select id="filter-time" onchange="filterData()">
@@ -147,6 +144,9 @@
         <label class="checkbox-label">
             <input type="checkbox" id="show-resolved" onchange="filterData()"> 歷史結案資料
         </label>
+        <button class="btn" style="background: var(--secondary); color: white; margin-left: auto;" onclick="exportToCSV()">
+            <i class="fas fa-file-excel"></i> 匯出報表
+        </button>
     </div>
 
     <div class="main-content">
