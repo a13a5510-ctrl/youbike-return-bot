@@ -65,15 +65,14 @@ if FIREBASE_CREDENTIALS:
         cred_dict = json.loads(FIREBASE_CREDENTIALS)
         cred = credentials.Certificate(cred_dict)
         # 換成你專屬的最新版 Storage 名稱
-       firebase_admin.initialize_app(cred, {
-         'storageBucket': "youbike-return-bot.firebasestorage.app"
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': "youbike-return-bot.firebasestorage.app"
         })
         db = firestore.client()
         bucket = storage.bucket()
         print("✅ Firebase Firestore & Storage 初始化成功！")
     except Exception as e:
         print(f"❌ 初始化失敗: {e}")
-
 # ==========================================
 # 🛡️ 記憶與防禦陣法 (Session & 單一單號追蹤)
 # ==========================================
