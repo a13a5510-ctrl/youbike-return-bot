@@ -92,17 +92,12 @@ def get_session(user_id):
     return session
 
 def clean_json_string(raw_text):
-    """安全地清除 Gemini 可能輸出的 markdown json 標記，避開反引號詛咒"""
-    cleaned = raw_text.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    elif cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-        
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-        
-    return cleaned.strip()
+    """極限防禦版：直接暴力擷取 {} 之間的內容，無視任何多餘的文字"""
+    start = raw_text.find('{')
+    end = raw_text.rfind('}')
+    if start != -1 and end != -1:
+        return raw_text[start:end+1]
+    return "{}"
 
 # ==========================================
 # 🌐 Webhook 接收路由
