@@ -3,90 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouBike AI 智能客服戰情室</title>
+    <title>YouBike 智能客服中心</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
-            --success: #27ae60; --danger: #e74c3c; --warning: #f1c40f; --light: #ecf0f1;
+            /* 柔和女性向調色盤 */
+            --bg-color: #FFFafb;         /* 極淺奶油粉底色 */
+            --primary: #FFB6C1;          /* 柔和櫻花粉 */
+            --primary-dark: #FF9EAB;     /* 櫻花粉懸停深色 */
+            --secondary: #8395a7;        /* 莫蘭迪優雅灰藍 (文字主色) */
+            --accent: #ff9f43;           /* 溫暖的橘色點綴 */
+            --card-bg: #FFFFFF;          /* 純白卡片 */
+            --success: #55efc4;          /* 柔和薄荷綠 */
+            --danger: #fab1a0;           /* 柔和珊瑚紅 */
+            --text-dark: #576574;        /* 深灰字體 */
+            --shadow: 0 8px 24px rgba(255, 182, 193, 0.15); /* 帶有粉色調的柔軟陰影 */
         }
-        body { font-family: 'Segoe UI', '微軟正黑體', sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+
+        body { font-family: 'Nunito', 'Noto Sans TC', sans-serif; background-color: var(--bg-color); color: var(--text-dark); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* 標題列 */
+        .header { background: #fff; padding: 20px 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 15px; }
+        .header h1 { margin: 0; color: var(--primary-dark); font-size: 1.5em; font-weight: 700; letter-spacing: 1px;}
         
         /* 頂部統計看板 */
-        .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 20px; background: var(--primary); color: white; }
-        .stat-card { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid var(--accent); }
-        .stat-card h3 { margin: 0; font-size: 0.9em; opacity: 0.8; }
-        .stat-card p { margin: 5px 0 0; font-size: 1.8em; font-weight: bold; }
+        .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 25px 40px; }
+        .stat-card { background: var(--card-bg); padding: 20px; border-radius: 16px; text-align: center; box-shadow: var(--shadow); position: relative; overflow: hidden; border: 1px solid rgba(255,182,193,0.2); }
+        .stat-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background: var(--primary); }
+        .stat-card.warning::before { background: var(--accent); }
+        .stat-card.success::before { background: var(--success); }
+        .stat-card.danger::before { background: var(--danger); }
+        .stat-card h3 { margin: 0; font-size: 0.95em; color: var(--secondary); font-weight: 600; }
+        .stat-card p { margin: 10px 0 0; font-size: 2.2em; font-weight: 700; color: var(--text-dark); }
 
         /* 操作區 */
-        .control-panel { padding: 15px 20px; background: white; border-bottom: 1px solid #ddd; display: flex; gap: 15px; align-items: center; }
-        input[type="text"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; width: 250px; }
-        select { padding: 8px; border-radius: 4px; }
+        .control-panel { padding: 0 40px 15px; display: flex; gap: 15px; align-items: center; }
+        input[type="text"], select { padding: 12px 18px; border: 1px solid #ffe4e8; border-radius: 30px; font-size: 0.95em; outline: none; transition: 0.3s; background: white; color: var(--text-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        input[type="text"]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2); }
+        input[type="text"] { width: 280px; }
+        .checkbox-label { color: var(--secondary); font-size: 0.95em; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
         /* 報表清單 */
-        .main-content { flex: 1; overflow-y: auto; padding: 20px; }
-        .report-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .report-table th { background: var(--secondary); color: white; padding: 12px; text-align: left; }
-        .report-table td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.95em; }
-        .report-table tr:hover { background-color: #f9f9f9; }
+        .main-content { flex: 1; overflow-y: auto; padding: 0 40px 30px; }
+        .report-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .report-table th { color: var(--secondary); padding: 0 15px 10px; text-align: left; font-weight: 600; font-size: 0.9em; border-bottom: 2px solid #ffe4e8; }
+        .report-table tr.item-row td { background: white; padding: 18px 15px; font-size: 0.95em; cursor: pointer; transition: 0.3s; border-top: 1px solid transparent; border-bottom: 1px solid transparent; }
+        .report-table tr.item-row:hover td { background: #fff5f7; transform: translateY(-1px); }
+        /* 讓表格列變為圓角卡片感 */
+        .report-table tr.item-row td:first-child { border-radius: 12px 0 0 12px; border-left: 1px solid #ffe4e8; }
+        .report-table tr.item-row td:last-child { border-radius: 0 12px 12px 0; border-right: 1px solid #ffe4e8; }
+        .report-table tr.item-row td { border-top: 1px solid #ffe4e8; border-bottom: 1px solid #ffe4e8; }
 
         /* 標籤樣式 */
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
-        .bg-repair { background: #ffeaa7; color: #d35400; }
-        .bg-spam { background: #fab1a0; color: #c0392b; }
-        .bg-pending { background: #dff9fb; color: #0984e3; }
-        .bg-done { background: #55efc4; color: #00b894; }
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 700; display: inline-block; }
+        .bg-repair { background: #fff0f3; color: #ff7675; }
+        .bg-spam { background: #ffeaa7; color: #d35400; }
+        .bg-pending { background: #e0f7fa; color: #0097e6; }
+        .bg-done { background: #e8f8f5; color: #00b894; }
 
         /* 按鈕 */
-        .btn { border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
-        .btn-solve { background: var(--success); color: white; }
-        .btn-invalid { background: var(--danger); color: white; margin-left: 5px; }
-        .btn:hover { opacity: 0.8; }
+        .btn { border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-solve { background: var(--success); color: white; box-shadow: 0 4px 10px rgba(85, 239, 196, 0.3); }
+        .btn-invalid { background: var(--danger); color: white; margin-left: 8px; box-shadow: 0 4px 10px rgba(250, 177, 160, 0.3); }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+        /* 🌷 詳細資訊彈出視窗 (Modal) */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.2); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal { background: white; width: 500px; max-width: 90%; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-header { padding: 20px 25px; background: linear-gradient(135deg, #fff0f3 0%, #fff 100%); border-bottom: 1px solid #ffe4e8; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; font-size: 1.2em; color: var(--primary-dark); }
+        .close-btn { background: none; border: none; font-size: 1.5em; color: var(--secondary); cursor: pointer; transition: 0.2s; }
+        .close-btn:hover { color: var(--danger); }
+        
+        .modal-body { padding: 25px; max-height: 60vh; overflow-y: auto; background: #fafbfc; }
+        
+        /* 聊天氣泡介面 */
+        .chat-container { display: flex; flex-direction: column; gap: 12px; }
+        .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 0.95em; line-height: 1.5; position: relative; }
+        .user-bubble { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; box-shadow: 0 4px 10px rgba(255, 182, 193, 0.3); }
+        .ai-bubble { align-self: flex-start; background: white; color: var(--text-dark); border-bottom-left-radius: 4px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        
+        .modal-footer { padding: 15px 25px; background: white; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
     </style>
 </head>
 <body>
 
+    <div class="header">
+        <i class="fas fa-seedling" style="color: var(--primary); font-size: 1.8em;"></i>
+        <h1>YouBike 智能客服中心</h1>
+    </div>
+
     <div class="stats-bar">
         <div class="stat-card"><h3>今日總回報</h3><p id="stat-total">0</p></div>
-        <div class="stat-card" style="border-color: var(--warning);"><h3>待處理案件</h3><p id="stat-pending">0</p></div>
-        <div class="stat-card" style="border-color: var(--success);"><h3>已結案數量</h3><p id="stat-resolved">0</p></div>
-        <div class="stat-card" style="border-color: var(--danger);"><h3>無效/惡作劇</h3><p id="stat-spam">0</p></div>
+        <div class="stat-card warning"><h3>待處理案件</h3><p id="stat-pending">0</p></div>
+        <div class="stat-card success"><h3>已結案數量</h3><p id="stat-resolved">0</p></div>
+        <div class="stat-card danger"><h3>無效/惡作劇</h3><p id="stat-spam">0</p></div>
     </div>
 
     <div class="control-panel">
-        <input type="text" id="search-input" placeholder="搜尋車號或站點..." onkeyup="filterData()">
+        <i class="fas fa-search" style="color: var(--primary); position: absolute; margin-left: 15px;"></i>
+        <input type="text" id="search-input" placeholder="搜尋車號或站點..." onkeyup="filterData()" style="padding-left: 40px;">
         <select id="filter-category" onchange="filterData()">
-            <option value="">所有分類</option>
-            <option value="設備報修">設備報修</option>
-            <option value="站點異常">站點異常</option>
-            <option value="惡作劇/無效">無效回報</option>
+            <option value="">🌸 所有分類</option>
+            <option value="設備報修">🔧 設備報修</option>
+            <option value="站點異常">📍 站點異常</option>
+            <option value="惡作劇/無效">🗑️ 無效回報</option>
         </select>
-        <label><input type="checkbox" id="show-resolved" onchange="filterData()"> 顯示已結案資料</label>
+        <label class="checkbox-label">
+            <input type="checkbox" id="show-resolved" onchange="filterData()"> 顯示歷史結案資料
+        </label>
     </div>
 
     <div class="main-content">
         <table class="report-table">
             <thead>
                 <tr>
-                    <th>時間</th>
-                    <th>類別</th>
-                    <th>車號</th>
-                    <th>地點/訊息</th>
-                    <th>AI 狀態</th>
-                    <th>操作</th>
+                    <th>回報時間</th>
+                    <th>問題類別</th>
+                    <th>車輛編號</th>
+                    <th>最後動態摘要</th>
+                    <th>處理狀態</th>
+                    <th>操作面板</th>
                 </tr>
             </thead>
             <tbody id="data-list">
-                <tr><td colspan="6" style="text-align:center;">載入中...</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 40px; color: #999;">資料載入中，請稍候... 🌸</td></tr>
             </tbody>
         </table>
+    </div>
+
+    <div class="modal-overlay" id="chat-modal" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title">案件詳細資訊</h2>
+                <button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); font-size: 0.9em; border-left: 4px solid var(--primary);">
+                    <div style="margin-bottom: 5px;">📍 <b>地點：</b> <span id="modal-loc"></span></div>
+                    <div>🚲 <b>車號：</b> <span id="modal-bike"></span></div>
+                </div>
+                <div class="chat-container" id="modal-chat-box">
+                    </div>
+            </div>
+            <div class="modal-footer" id="modal-actions">
+                </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 徒兒 correct Config
+        // 徒兒的 Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyC3aETfTnj6BD16N2lvxl4LQjc0XCJ16h4",
             authDomain: "youbike-return-bot.firebaseapp.com",
@@ -100,7 +172,7 @@
         const db = getFirestore(app);
         let allData = [];
 
-        // 🟢 監聽 Firestore 資料 (第七題: 利用 JS 極速篩選)
+        // 🟢 監聽 Firestore 資料
         const q = query(collection(db, "user_reports"), orderBy("timestamp", "desc"));
         onSnapshot(q, (snapshot) => {
             allData = [];
@@ -117,29 +189,35 @@
             const showResolved = document.getElementById("show-resolved").checked;
 
             list.innerHTML = "";
-            data.forEach(item => {
-                // 篩選過濾
+            let hasData = false;
+
+            data.forEach((item, index) => {
                 const matchesSearch = (item.bike_id || "").toLowerCase().includes(search) || (item.location || "").toLowerCase().includes(search);
                 const matchesCat = catFilter === "" || item.category === catFilter;
                 const isHiddenResolved = item.status === 'resolved' && !showResolved;
 
                 if (matchesSearch && matchesCat && !isHiddenResolved) {
-                    const time = item.timestamp ? item.timestamp.toDate().toLocaleString() : "剛剛";
+                    hasData = true;
+                    const time = item.timestamp ? item.timestamp.toDate().toLocaleString([], {month:'2-digit', day:'2-digit', hour: '2-digit', minute:'2-digit'}) : "剛剛";
+                    
+                    // 擷取最後一句民眾說的話作為摘要
+                    const msgArray = (item.message || "").split('｜');
+                    const lastMsg = msgArray[msgArray.length - 1].trim();
+
                     const row = `
-                        <tr>
-                            <td>${time}</td>
-                            <td><span class="badge ${item.category === '設備報修' ? 'bg-repair' : 'bg-light'}">${item.category}</span></td>
-                            <td style="font-weight:bold; color:var(--accent);">${item.bike_id || '--'}</td>
-                            <td>
-                                <div><b>地點:</b> ${item.location || '未提及'}</div>
-                                <div style="font-size:0.85em; color:#666;"><b>內容:</b> ${item.message}</div>
+                        <tr class="item-row" onclick="openModal(${index})">
+                            <td style="color: var(--secondary);">${time}</td>
+                            <td><span class="badge ${item.category === '設備報修' ? 'bg-repair' : 'bg-pending'}">${item.category}</span></td>
+                            <td style="font-weight:700; color:var(--primary-dark); font-size:1.1em;">${item.bike_id || '--'}</td>
+                            <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--secondary);">
+                                ${lastMsg}
                             </td>
                             <td><span class="badge ${item.status === 'pending' ? 'bg-pending' : 'bg-done'}">${item.status === 'pending' ? '待處理' : '已結案'}</span></td>
-                            <td>
+                            <td onclick="event.stopPropagation()">
                                 ${item.status === 'pending' ? 
-                                    `<button class="btn btn-solve" onclick="markSolved('${item.id}')"><i class="fas fa-check"></i> 結案</button>
-                                     <button class="btn btn-invalid" onclick="markSpam('${item.id}')"><i class="fas fa-trash"></i> 無效</button>` : 
-                                    `<span style="color:#999; font-size:0.8em;">無操作</span>`
+                                    `<button class="btn btn-solve" onclick="markSolved('${item.id}')"><i class="fas fa-check"></i></button>
+                                     <button class="btn btn-invalid" onclick="markSpam('${item.id}')"><i class="fas fa-trash"></i></button>` : 
+                                    `<span style="color:#ccc; font-size:0.85em;"><i class="fas fa-archive"></i> 已歸檔</span>`
                                 }
                             </td>
                         </tr>
@@ -147,9 +225,12 @@
                     list.innerHTML += row;
                 }
             });
+
+            if(!hasData) {
+                list.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px; color: #999;">目前沒有符合條件的案件喔 🌸</td></tr>`;
+            }
         }
 
-        // 📊 更新統計數據
         function updateStats() {
             document.getElementById("stat-total").innerText = allData.length;
             document.getElementById("stat-pending").innerText = allData.filter(d => d.status === 'pending').length;
@@ -157,16 +238,56 @@
             document.getElementById("stat-spam").innerText = allData.filter(d => d.category === '惡作劇/無效').length;
         }
 
-        // 結案功能 (第三題: 客服操作)
+        // 🌷 彈出視窗處理邏輯
+        window.openModal = (index) => {
+            const item = allData[index];
+            document.getElementById('modal-title').innerText = `案件 #${item.id.substring(0,6)}`;
+            document.getElementById('modal-bike').innerText = item.bike_id || '尚未提供';
+            document.getElementById('modal-loc').innerText = item.location || '尚未提供';
+
+            // 渲染聊天對話氣泡
+            const chatBox = document.getElementById('modal-chat-box');
+            chatBox.innerHTML = '';
+            
+            // 處理民眾傳送的多句訊息
+            const userMsgs = (item.message || "").split('｜');
+            userMsgs.forEach(msg => {
+                let displayMsg = msg.trim();
+                // 處理圖片佔位符
+                if(displayMsg.includes("[傳送了圖片]")) displayMsg = "🖼️ <i>(用戶傳送了圖片)</i>";
+                chatBox.innerHTML += `<div class="chat-bubble user-bubble">${displayMsg}</div>`;
+            });
+
+            // 加入 AI 的最終回覆
+            chatBox.innerHTML += `<div class="chat-bubble ai-bubble">🤖 ${item.reply}</div>`;
+
+            // 渲染底部操作按鈕
+            const footer = document.getElementById('modal-actions');
+            if (item.status === 'pending') {
+                footer.innerHTML = `
+                    <button class="btn btn-invalid" onclick="markSpam('${item.id}'); closeModal();">標記無效</button>
+                    <button class="btn btn-solve" onclick="markSolved('${item.id}'); closeModal();">結案處理</button>
+                `;
+            } else {
+                footer.innerHTML = `<span style="color: var(--secondary); font-weight:bold;">此案件已結案</span>`;
+            }
+
+            document.getElementById('chat-modal').style.display = 'flex';
+        };
+
+        window.closeModal = (e) => {
+            if(e) e.stopPropagation();
+            document.getElementById('chat-modal').style.display = 'none';
+        };
+
+        // 操作功能
         window.markSolved = async (id) => {
             const reportRef = doc(db, "user_reports", id);
             await updateDoc(reportRef, { status: "resolved" });
-            alert("✅ 案件已結案！");
         };
 
-        // 標記無效功能
         window.markSpam = async (id) => {
-            if(confirm("確定將此回報標記為無效？")) {
+            if(confirm("確定將此回報標記為無效嗎？")) {
                 const reportRef = doc(db, "user_reports", id);
                 await updateDoc(reportRef, { category: "惡作劇/無效", status: "resolved" });
             }
