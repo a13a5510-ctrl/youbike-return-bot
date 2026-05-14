@@ -119,6 +119,9 @@
     <div class="control-panel">
         <div class="filter-group">
             <i class="fas fa-search" style="color: var(--primary); margin-left: 10px;"></i>
+            <button class="btn" style="background: var(--secondary); color: white; margin-left: auto;" onclick="exportToCSV()">
+            <i class="fas fa-file-excel"></i> 匯出報表
+        </button>
             <input type="text" id="search-input" placeholder="車號或站點..." onkeyup="filterData()">
             
             <select id="filter-time" onchange="filterData()">
@@ -357,7 +360,59 @@
                 btn.innerHTML = '<i class="fas fa-sun"></i> 白晝模式';
             }
         };
+// 📊 一鍵匯出 CSV (Excel 可開)
+        window.exportToCSV = () => {
+            // 抓取目前畫面上過濾後準備顯示的資料 (利用已有的 allData 和篩選條件)
+            const search = document.getElementById("search-input").value.toLowerCase();
+            const timeFilter = document.getElementById("filter-time").value;
+            const reasonFilter = document.getElementById("filter-reason").value;
+            const needImage = document.getElementById("filter-has-image").checked;
+            const showResolved = document.getElementById("show-resolved").checked;
 
+            const now = new Date();
+            let timeLimit = null;
+            if (timeFilter !== 'all') {
+                timeLimit = new Date();
+                timeLimit.setDate(now.getDate() - parseInt(timeFilter));
+            }
+
+            let csvContent = "報修時間,處理狀態,分類,聯絡電話,車號,地點,詳細內容,圖片連結\n";
+
+            allData.forEach(item => {
+                const itemDate = item.timestamp ? item.timestamp.toDate() : new Date();
+                const msg = item.message || "";
+                
+                const matchesSearch = (item.bike_id || "").toLowerCase().includes(search) || (item.location || "").toLowerCase().includes(search);
+                const isHiddenResolved = item.status === 'resolved' && !showResolved;
+                const matchesTime = timeLimit ? itemDate >= timeLimit : true;
+                const matchesReason = checkReason(msg, reasonFilter);
+                const hasImg = item.image_urls && item.image_urls.length > 0;
+                const matchesImage = needImage ? hasImg : true;
+
+                if (matchesSearch && matchesTime && matchesReason && matchesImage && !isHiddenResolved) {
+                    const timeStr = itemDate.toLocaleString();
+                    const statusStr = item.status === 'pending' ? '待處理' : '已結案';
+                    const phone = item.phone || "未提供";
+                    const bikeId = item.bike_id || "";
+                    const loc = item.location || "";
+                    // 處理內容中的逗號與換行，避免 CSV 跑版
+                    const cleanMsg = msg.replace(/｜/g, " ").replace(/,/g, "，").replace(/\n/g, " ");
+                    const imgLinks = hasImg ? item.image_urls.join(" ; ") : "無";
+
+                    csvContent += `${timeStr},${statusStr},${item.category},${phone},${bikeId},${loc},${cleanMsg},${imgLinks}\n`;
+                }
+            });
+
+            // 觸發下載
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF 是為了解決 Excel 中文亂碼
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `YouBike報修清單_${new Date().getTime()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
         // 初始渲染
         function renderTable(data) { window.filterData(); }
     </script>
