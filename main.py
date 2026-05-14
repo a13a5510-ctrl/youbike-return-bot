@@ -1,14 +1,13 @@
 import os
 import json
 import time
-import re
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, ImageMessage, TextSendMessage
 import google.generativeai as genai
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
 
 app = Flask(__name__)
 
@@ -58,17 +57,22 @@ QA_BRAIN = """
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(model_name="gemini-2.5-flash", system_instruction=QA_BRAIN)
 
-# 初始化 Firebase
+# 初始化 Firebase (同時啟動 Firestore 與 Storage)
 db = None
+bucket = None
 if FIREBASE_CREDENTIALS:
     try:
         cred_dict = json.loads(FIREBASE_CREDENTIALS)
         cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
+        # 自動抓取專案 ID 作為儲存桶名稱
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': f"{cred_dict['project_id']}.appspot.com"
+        })
         db = firestore.client()
-        print("✅ Firebase 初始化成功！")
+        bucket = storage.bucket()
+        print("✅ Firebase Firestore & Storage 初始化成功！")
     except Exception as e:
-        print(f"❌ Firebase 初始化失敗: {e}")
+        print(f"❌ 初始化失敗: {e}")
 
 # ==========================================
 # 🛡️ 記憶與防禦陣法 (Session & 單一單號追蹤)
@@ -97,15 +101,12 @@ def get_session(user_id):
     return session
 
 def clean_json_string(raw_text):
-    """安全地清除 Gemini 可能輸出的 markdown json 標記"""
-    cleaned = raw_text.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    elif cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    return cleaned.strip()
+    """極限防禦版：直接暴力擷取 {} 之間的內容，無視多餘廢話"""
+    start = raw_text.find('{')
+    end = raw_text.rfind('}')
+    if start != -1 and end != -1:
+        return raw_text[start:end+1]
+    return "{}"
 
 # ==========================================
 # 🌐 Webhook 接收路由
@@ -162,7 +163,7 @@ def handle_text_message(event):
                 'timestamp': firestore.SERVER_TIMESTAMP
             }
             
-            # 防呆機制：只在有抓到新資料時才更新車號地點，避免被空字串洗掉
+            # 防呆機制：只在有抓到新資料時才更新車號地點
             if result.get("extracted_bike_id"):
                 report_data['bike_id'] = result.get("extracted_bike_id")
             if result.get("extracted_location"):
@@ -174,7 +175,7 @@ def handle_text_message(event):
                 new_ref.set(report_data)
                 session["doc_id"] = new_ref.id
             else:
-                # 繼續對話：更新舊單 (merge=True 保留其他欄位)
+                # 繼續對話：更新舊單 (merge=True 保留其他欄位，如 image_urls)
                 db.collection('user_reports').document(session["doc_id"]).set(report_data, merge=True)
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
@@ -185,7 +186,7 @@ def handle_text_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=fallback_msg))
 
 # ==========================================
-# 📸 圖片訊息處理
+# 📸 圖片訊息處理 (存證大法核心)
 # ==========================================
 @handler.add(MessageEvent, message=ImageMessage)
 def handle_image_message(event):
@@ -195,39 +196,49 @@ def handle_image_message(event):
     if time.time() < session["frozen_until"]:
         return
 
-    # 累積圖片紀錄
+    # 累積對話紀錄
     if session["full_message"]:
         session["full_message"] += " ｜ [傳送了圖片]"
     else:
         session["full_message"] = "[傳送了圖片]"
 
-    message_content = line_bot_api.get_message_content(event.message.id)
-    image_data = b"".join(message_content.iter_content())
-        
-    image_part = {"mime_type": "image/jpeg", "data": image_data}
+    # 下載圖片二進位檔
+    msg_content = line_bot_api.get_message_content(event.message.id)
+    image_data = b"".join(msg_content.iter_content())
 
     try:
+        # 【魔法一：上傳圖片到 Firebase Storage】
+        img_url = ""
+        if bucket:
+            file_path = f"reports/{user_id}_{int(time.time())}.jpg"
+            blob = bucket.blob(file_path)
+            blob.upload_from_string(image_data, content_type='image/jpeg')
+            blob.make_public()  # 開放權限讓網頁能讀取
+            img_url = blob.public_url
+
+        # 【魔法二：將圖片拿給 Gemini 看】
+        image_part = {"mime_type": "image/jpeg", "data": image_data}
         prompt = "用戶上傳圖片，請解析是否為腳踏車，並找出是否有車號。請嚴格以JSON回傳。"
+        
         chat = model.start_chat(history=session["history"])
         response = chat.send_message([prompt, image_part])
         session["history"].append({"role": "model", "parts": [response.text]})
         
-        json_str = clean_json_string(response.text)
-        result = json.loads(json_str)
-        
-        reply_text = result.get("reply_text", "已收到圖片！")
+        result = json.loads(clean_json_string(response.text))
+        reply_text = result.get("reply_text", "已收到您的圖片！")
         is_valid = result.get("is_valid_image", True)
         
+        # 惡意流量防禦
         if not is_valid:
             session["bad_image_count"] += 1
             if session["bad_image_count"] >= 2:
                 session["frozen_until"] = time.time() + 300
                 session["bad_image_count"] = 0
-                reply_text = "⚠️ 偵測到您連續上傳無關圖片，報修功能將暫停 5 分鐘。"
+                reply_text = "⚠️ 系統偵測到您連續上傳與報修無關的圖片。報修功能將暫停 5 分鐘。"
         else:
             session["bad_image_count"] = 0
             
-        # 寫入/更新 Firebase
+        # 【魔法三：寫入資料庫並綁定網址】
         if db:
             report_data = {
                 'user_id': user_id,
@@ -239,6 +250,10 @@ def handle_image_message(event):
                 'timestamp': firestore.SERVER_TIMESTAMP
             }
             
+            # 使用 ArrayUnion 將圖片網址加入陣列 (不會洗掉舊圖片)
+            if img_url:
+                report_data['image_urls'] = firestore.ArrayUnion([img_url])
+                
             if result.get("extracted_bike_id"):
                 report_data['bike_id'] = result.get("extracted_bike_id")
             if result.get("extracted_location"):
@@ -255,7 +270,7 @@ def handle_image_message(event):
         
     except Exception as e:
         print(f"❌ 錯誤: {e}")
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="圖片解析失敗，請重傳或稍後再試。"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="圖片解析失敗，請確認圖片清晰或稍後再試。"))
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
