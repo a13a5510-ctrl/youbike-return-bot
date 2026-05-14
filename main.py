@@ -66,7 +66,7 @@ if FIREBASE_CREDENTIALS:
         cred = credentials.Certificate(cred_dict)
         # 換成你專屬的最新版 Storage 名稱
      firebase_admin.initialize_app(cred, {
-         'storageBucket': "youbike-return-bot.firebasestorage.app"
+         'storageBucket': "gs://youbike-return-bot.firebasestorage.app"
      })
         db = firestore.client()
         bucket = storage.bucket()
